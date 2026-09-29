@@ -1,6 +1,13 @@
 <div align="center">
 
-# AFTERLIFE
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./AFTERLIFE.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./AFTERLIFE.svg">
+  <img alt="AFTERLIFE" src="./AFTERLIFE.png" width="500">
+</picture>
+
+<br />
+<br />
 
 ### Permissionless DeFi Exit Compiler for Arbitrum
 
@@ -8,14 +15,23 @@
 
 <br />
 
-[![Arbitrum](https://img.shields.io/badge/Arbitrum-Sepolia-111111?style=for-the-badge)](https://arbitrum.io/)
-[![Stylus](https://img.shields.io/badge/Stylus-Rust-111111?style=for-the-badge)](https://arbitrum.io/stylus)
-[![Solidity](https://img.shields.io/badge/Solidity-Execution-111111?style=for-the-badge)](https://soliditylang.org/)
-[![USDG](https://img.shields.io/badge/USDG-Paxos-111111?style=for-the-badge)](https://www.paxos.com/usdg)
+[![Arbitrum](https://img.shields.io/badge/Arbitrum-Sepolia-28A0F0?style=for-the-badge&logo=arbitrum&logoColor=white)](https://arbitrum.io/)
+[![Stylus](https://img.shields.io/badge/Stylus-Rust-E6007A?style=for-the-badge&logo=rust&logoColor=white)](https://arbitrum.io/stylus)
+[![Solidity](https://img.shields.io/badge/Solidity-Execution-363636?style=for-the-badge&logo=solidity&logoColor=white)](https://soliditylang.org/)
+[![USDG](https://img.shields.io/badge/USDG-Paxos-00D395?style=for-the-badge)](https://www.paxos.com/usdg)
+
+<br />
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-F6FF00?style=flat-square)](./LICENSE)
+[![Built for](https://img.shields.io/badge/Built_for-Arbitrum_Hackathon-28A0F0?style=flat-square)](https://arbitrum.io/)
 
 <br />
 
 **AFTERLIFE reconstructs, verifies, and executes exit paths for stranded DeFi positions when the original application is gone.**
+
+<br />
+
+[The Problem](#the-problem) · [How It Works](#how-it-works) · [Architecture](#architecture) · [Exit Proof](#exit-proof) · [Live Demo](#live-demo) · [Security](#security-model) · [Contracts](#contracts)
 
 </div>
 
@@ -89,7 +105,7 @@ AFTERLIFE turns that manual contract archaeology into an automated recovery proc
 
 <div align="center">
 
-## DeFi positions should be self-exitable.
+## DeFi positions should be self-exitable
 
 </div>
 
@@ -150,7 +166,7 @@ An Exit Proof describes exactly how a position can currently be recovered.
 The Exit Proof binds the recovery plan to:
 
 | Constraint | Purpose |
-|---|---|
+| --- | --- |
 | Owner | Defines whose position is being recovered |
 | Chain ID | Prevents cross-chain replay |
 | Contract targets | Restricts execution scope |
@@ -830,11 +846,11 @@ The hackathon demo revolves around one experiment.
 
 <div align="center">
 
-## Kill the application.
+## Kill the application
 
-## Keep the contracts alive.
+## Keep the contracts alive
 
-## Recover the money anyway.
+## Recover the money anyway
 
 </div>
 
@@ -1442,10 +1458,42 @@ That is a different problem.
 
 <div align="center">
 
-# AFTERLIFE
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./AFTERLIFE.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./AFTERLIFE.svg">
+  <img alt="AFTERLIFE" src="./AFTERLIFE.png" width="300">
+</picture>
 
-### If the smart contract survives, the exit should survive with it.
+<br />
+<br />
+
+### If the smart contract survives, the exit should survive with it
 
 **The frontend is dead. Your capital isn't.**
+
+<br />
+
+---
+
+#### Built With
+
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat-square&logo=rust&logoColor=white)
+![Solidity](https://img.shields.io/badge/Solidity-363636?style=flat-square&logo=solidity&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Arbitrum](https://img.shields.io/badge/Arbitrum-28A0F0?style=flat-square&logo=arbitrum&logoColor=white)
+
+<br />
+
+#### Acknowledgments
+
+[Arbitrum](https://arbitrum.io/) · [Arbitrum Stylus](https://arbitrum.io/stylus) · [Paxos USDG](https://www.paxos.com/usdg)
+
+<br />
+
+#### License
+
+This project is licensed under the **MIT License** — see the [`LICENSE`](./LICENSE) file for details.
+
+<br />
 
 </div>
