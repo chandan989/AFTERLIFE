@@ -1,222 +1,266 @@
+<div align="center">
+
 # AFTERLIFE
 
-## Permissionless DeFi Exit Compiler
+### Permissionless DeFi Exit Compiler for Arbitrum
 
-> **The frontend is dead. Your capital isn't.**
+**The frontend is dead. Your capital isn't.**
 
-AFTERLIFE reconstructs, verifies, and executes exit paths for stranded DeFi positions when the original frontend, API, indexer, or development team is gone.
+<br />
 
-A user connects a wallet.
+[![Arbitrum](https://img.shields.io/badge/Arbitrum-Sepolia-111111?style=for-the-badge)](https://arbitrum.io/)
+[![Stylus](https://img.shields.io/badge/Stylus-Rust-111111?style=for-the-badge)](https://arbitrum.io/stylus)
+[![Solidity](https://img.shields.io/badge/Solidity-Execution-111111?style=for-the-badge)](https://soliditylang.org/)
+[![USDG](https://img.shields.io/badge/USDG-Paxos-111111?style=for-the-badge)](https://www.paxos.com/usdg)
 
-AFTERLIFE discovers the contracts behind the position, reconstructs how the assets are nested, compiles the required withdrawal sequence, verifies the exact contracts being called, simulates the outcome, and gives the user a safe recovery transaction.
+<br />
 
-No cooperation from the failed protocol is required.
+**AFTERLIFE reconstructs, verifies, and executes exit paths for stranded DeFi positions when the original application is gone.**
 
----
-
-# The Problem
-
-DeFi promises permissionless ownership.
-
-But leaving a protocol often still depends on infrastructure controlled by the team that built it.
-
-A position may actually look like:
-
-```text
-USDG
-  ↓ deposit
-
-Vault
-  ↓ receive
-
-Vault Share
-  ↓ stake
-
-Gauge
-  ↓ receive
-
-Staked Receipt Token
-```
-
-If the frontend disappears, the user's assets have not necessarily disappeared.
-
-What disappears is the map.
-
-The user now needs to determine:
-
-```text
-Which contract holds my position?
-
-Is it a proxy?
-
-What implementation is behind it?
-
-What does this receipt token represent?
-
-Do I need to unstake first?
-
-What function releases the vault shares?
-
-What asset should I receive?
-
-Has the contract changed since the instructions were written?
-
-Can these operations be executed safely?
-```
-
-Protocols including DeFi.money and Minterest have already shut down their interfaces while leaving users able to withdraw through direct smart-contract interaction.
-
-AFTERLIFE turns that manual recovery process into software.
+</div>
 
 ---
 
-# The Idea
+## The Problem
+
+DeFi contracts can survive longer than the companies that built them.
+
+The frontend disappears.
+
+The API stops responding.
+
+The indexer dies.
+
+The Discord closes.
+
+The smart contracts are still there.
+
+So are the user's assets.
+
+The problem is that the **map back to those assets is gone**.
+
+```text
+User Deposit
+     │
+     ▼
+┌─────────────┐
+│    Vault    │
+└──────┬──────┘
+       │ receipt token
+       ▼
+┌─────────────┐
+│   Staking   │
+│    Gauge    │
+└──────┬──────┘
+       │ staked receipt
+       ▼
+┌─────────────┐
+│ User Wallet │
+└─────────────┘
+```
+
+Without the original interface, a user may need to determine:
+
+```text
+Which contract owns my position?
+
+What does this token represent?
+
+Is the contract a proxy?
+
+Which implementation is live?
+
+Do I have to unstake first?
+
+What function returns the vault share?
+
+What asset sits underneath it?
+
+Has the contract changed?
+
+Will the complete exit still succeed?
+```
+
+AFTERLIFE turns that manual contract archaeology into an automated recovery process.
+
+---
+
+# The Core Idea
+
+<div align="center">
 
 ## DeFi positions should be self-exitable.
 
-AFTERLIFE treats a DeFi position as a dependency graph rather than as a token balance.
+</div>
 
-Example:
+AFTERLIFE treats every position as a dependency graph.
+
+A wallet might appear to hold one token:
+
+```text
+gpUSDG
+```
+
+But economically the position may actually be:
 
 ```text
 gpUSDG
    │
-   │ withdraw()
+   │ unstake
    ▼
  pUSDG
    │
-   │ redeem()
+   │ redeem
    ▼
  USDG
 ```
 
-AFTERLIFE determines that graph from permissionless chain data and compiles it into an executable recovery plan.
+AFTERLIFE reconstructs that graph directly from permissionless blockchain data.
 
-The result is an:
+It then compiles the graph into a machine-checkable:
 
 # EXIT PROOF
 
-An Exit Proof is a machine-checkable description of how a position can currently be recovered.
+---
+
+## Exit Proof
+
+An Exit Proof describes exactly how a position can currently be recovered.
 
 ```text
-EXIT PROOF #8F31
-
-Owner
-0x71A...
-
-Chain
-Arbitrum Sepolia
-
-Position
-1,024.84 gpUSDG
-
-Exit Graph
-
-gpUSDG
-  ↓ withdraw
-
-pUSDG
-  ↓ redeem
-
-USDG
-
-Targets
-2 contracts
-
-Contract fingerprints
-✓ matched
-
-Proxy implementations
-✓ resolved
-
-Recipient
-0x71A...
-
-Minimum returned
-1,018.00 USDG
-
-Simulation
-✓ success
-
-Status
-
-READY TO RECOVER
+┌──────────────────────────────────────────────────┐
+│                  EXIT PROOF                      │
+├──────────────────────────────────────────────────┤
+│ Owner            0x71A...                        │
+│ Chain            Arbitrum Sepolia                │
+│ Position         1,024.84 gpUSDG                 │
+│ Final Asset      USDG                            │
+│ Recipient        0x71A...                        │
+│ Minimum Output   1,018.00 USDG                   │
+│                                                  │
+│ Contract fingerprints                    MATCH   │
+│ Proxy implementations                   RESOLVED │
+│ Exit graph                               VERIFIED │
+│ Simulation                               SUCCESS │
+│                                                  │
+│ Status                              RECOVERABLE   │
+└──────────────────────────────────────────────────┘
 ```
 
-The Exit Proof binds the recovery operation to the exact contracts and constraints that were analyzed.
+The Exit Proof binds the recovery plan to:
 
-If the relevant contract implementation changes, the old proof becomes invalid.
+| Constraint | Purpose |
+|---|---|
+| Owner | Defines whose position is being recovered |
+| Chain ID | Prevents cross-chain replay |
+| Contract targets | Restricts execution scope |
+| Code hashes | Locks recovery to analyzed implementations |
+| Exit graph | Commits to the recovery sequence |
+| Recipient | Prevents redirected funds |
+| Minimum output | Protects the user from bad execution |
+| Deadline | Prevents stale recovery plans |
+
+If a relevant contract changes after analysis, the Exit Proof becomes invalid.
 
 ---
 
-# How AFTERLIFE Works
+# How It Works
 
-```text
-                     USER WALLET
-                          │
-                          ▼
-                ┌─────────────────┐
-                │ POSITION SCANNER│
-                └────────┬────────┘
-                         │
-                         ▼
-              ┌──────────────────────┐
-              │   RECOVERY COMPILER  │
-              │                      │
-              │ bytecode             │
-              │ proxy state          │
-              │ logs                 │
-              │ balances             │
-              │ interface probes     │
-              │ view calls           │
-              │ historical evidence  │
-              └──────────┬───────────┘
-                         │
-                         ▼
-                 EXIT DEPENDENCY
-                      GRAPH
-                         │
-                         ▼
-             ┌───────────────────────┐
-             │ STYLUS EXIT VERIFIER  │
-             │        Rust           │
-             │                       │
-             │ code fingerprints     │
-             │ known patterns        │
-             │ operation checks      │
-             │ plan constraints      │
-             └───────────┬───────────┘
-                         │
-                         ▼
-                    EXIT PROOF
-                         │
-                         ▼
-                    SIMULATION
-                         │
-                         ▼
-               ┌──────────────────┐
-               │ RECOVERY EXECUTOR│
-               └─────────┬────────┘
-                         │
-                         ▼
-                       USER
-                         │
-                         ▼
-                       USDG
+```mermaid
+flowchart TD
+    A[User Wallet] --> B[Position Scanner]
+    B --> C[Recovery Compiler]
+    C --> D[Exit Dependency Graph]
+    D --> E[Stylus Exit Verifier]
+    E --> F[Exit Proof]
+    F --> G[Simulation]
+    G -->|Pass| H[Recovery Executor]
+    G -->|Fail| I[Execution Blocked]
+    H --> J[Recovered Asset]
+```
+
+---
+
+# Architecture
+
+```mermaid
+flowchart LR
+
+    subgraph CLIENT["AFTERLIFE CLIENT"]
+        W[Wallet]
+        UI[Recovery Interface]
+    end
+
+    subgraph DISCOVERY["RECOVERY COMPILER"]
+        SCAN[Position Scanner]
+        PROXY[Proxy Resolver]
+        IFACE[Interface Prober]
+        EVENTS[Event Analyzer]
+        GRAPH[Graph Compiler]
+        JEV[Jev Reasoning Layer]
+    end
+
+    subgraph VERIFY["ARBITRUM STYLUS"]
+        VERIFIER[Exit Verifier]
+        HASH[Code Fingerprinting]
+        PATTERN[Pattern Validation]
+        PROOF[Exit Proof]
+    end
+
+    subgraph EXECUTION["SOLIDITY EXECUTION"]
+        SIM[Simulation]
+        EXEC[Recovery Executor]
+    end
+
+    subgraph TARGET["TARGET PROTOCOL"]
+        GAUGE[Staking / Gauge]
+        VAULT[Vault]
+        TOKEN[Underlying Asset]
+    end
+
+    W --> SCAN
+    SCAN --> PROXY
+    SCAN --> IFACE
+    SCAN --> EVENTS
+
+    PROXY --> GRAPH
+    IFACE --> GRAPH
+    EVENTS --> GRAPH
+    JEV --> GRAPH
+
+    GRAPH --> VERIFIER
+    VERIFIER --> HASH
+    VERIFIER --> PATTERN
+    HASH --> PROOF
+    PATTERN --> PROOF
+
+    PROOF --> SIM
+    SIM --> EXEC
+
+    EXEC --> GAUGE
+    GAUGE --> VAULT
+    VAULT --> TOKEN
+
+    TOKEN --> W
+    UI --> W
 ```
 
 ---
 
 # 1. Position Scanner
 
-AFTERLIFE begins with the wallet rather than with a protocol frontend.
+AFTERLIFE begins with the wallet.
 
-It identifies potential position assets from:
+Not with the protocol.
+
+The scanner looks for assets that may represent deeper positions.
+
+### Data sources
 
 ```text
 ERC-20 balances
 
-transaction history
+wallet transaction history
 
 Transfer events
 
@@ -229,7 +273,7 @@ known position contracts
 proxy relationships
 ```
 
-For each candidate contract it can query permissionless RPC primitives including:
+### RPC primitives
 
 ```text
 eth_getCode
@@ -241,38 +285,50 @@ eth_call
 eth_getLogs
 ```
 
-No API belonging to the target protocol is required.
+The original application's backend is not required.
 
 ---
 
 # 2. Recovery Compiler
 
-This is the core innovation.
+The Recovery Compiler is the core of AFTERLIFE.
 
-The Recovery Compiler attempts to determine:
+Its job is to answer:
 
 ```text
-TOKEN
-  ↓
+What is this token?
 
-What issued it?
-  ↓
+        │
+        ▼
+
+What contract issued it?
+
+        │
+        ▼
 
 What asset backs it?
-  ↓
+
+        │
+        ▼
 
 Is it currently staked?
-  ↓
+
+        │
+        ▼
 
 What operation releases it?
-  ↓
 
-Does another position sit underneath it?
+        │
+        ▼
+
+Is there another position underneath it?
 ```
 
-Instead of blindly searching for a `withdraw()` selector, the compiler combines multiple forms of evidence.
+The compiler combines several forms of evidence.
 
-### Interface probing
+---
+
+## Interface Probing
 
 Examples:
 
@@ -285,18 +341,20 @@ convertToAssets()
 
 previewRedeem()
 
-stakingToken()
-
-earned()
-
 balanceOf()
 
 allowance()
+
+stakingToken()
+
+earned()
 ```
 
-### Known standards
+---
 
-Initial support focuses on contracts where behavior can be strongly verified:
+## Standards
+
+The MVP focuses on structures that can be verified strongly:
 
 ```text
 ERC-20
@@ -308,77 +366,105 @@ ERC-1967 proxies
 common staking wrappers
 ```
 
-### Bytecode analysis
+---
 
-Runtime bytecode is inspected for known operation patterns and selectors.
+## Bytecode Analysis
 
-### Event analysis
-
-Historical events help identify relationships such as:
+Runtime bytecode can reveal:
 
 ```text
-deposit
+known selectors
 
-stake
+code fingerprints
 
-withdraw
+proxy structure
 
-redeem
-
-transfer
+supported operation patterns
 ```
 
-### View-call validation
+A selector alone is never considered proof of safe behavior.
 
-Candidate relationships are checked against live contract state.
+---
+
+## Event Analysis
+
+Historical events help reconstruct contract relationships.
+
+```text
+Deposit
+
+Withdraw
+
+Transfer
+
+Stake
+
+Unstake
+
+Redeem
+```
 
 ---
 
 # 3. Exit Dependency Graph
 
-The compiler converts discovered relationships into a graph.
+The compiler converts its findings into an explicit graph.
 
-Example:
+```mermaid
+flowchart TD
+    A["gpUSDG<br/>Staked Receipt"]
+    B["pUSDG<br/>ERC-4626 Share"]
+    C["USDG<br/>Underlying Asset"]
 
-```text
-                ┌──────────────┐
-                │ gpUSDG       │
-                └──────┬───────┘
-                       │
-                    unstake
-                       │
-                       ▼
-                ┌──────────────┐
-                │ pUSDG        │
-                └──────┬───────┘
-                       │
-                     redeem
-                       │
-                       ▼
-                ┌──────────────┐
-                │ USDG         │
-                └──────────────┘
+    A -->|unstake| B
+    B -->|redeem| C
 ```
 
-Each edge represents a real operation.
-
-Each node represents a real asset or contract state.
-
-A recovery plan is therefore not:
+Each node represents:
 
 ```text
-call withdraw()
+asset
+
+contract
+
+balance
+
+ownership state
 ```
 
-It is:
+Each edge represents:
+
+```text
+target
+
+function
+
+arguments
+
+input asset
+
+output asset
+
+expected state transition
+```
+
+AFTERLIFE is therefore not merely searching for:
+
+```text
+withdraw()
+```
+
+It is reconstructing:
 
 ```text
 Position A
-    ↓ operation X
-
+      │
+      │ operation 1
+      ▼
 Position B
-    ↓ operation Y
-
+      │
+      │ operation 2
+      ▼
 Underlying Asset
 ```
 
@@ -386,46 +472,69 @@ Underlying Asset
 
 # 4. Stylus Exit Verifier
 
-AFTERLIFE uses Arbitrum Stylus for the compute-heavy verification layer.
+The deterministic verification layer runs using **Arbitrum Stylus**.
 
-The verifier is written in Rust.
+Written in Rust.
 
-Stylus is suited to this role because bytecode processing and larger in-memory workloads are significantly cheaper than equivalent EVM computation for many workloads. Arbitrum documents compute as commonly 10–100× cheaper and memory as 100–500× cheaper depending on the workload.
-
-The verifier performs operations including:
+Its responsibilities include:
 
 ```text
 external bytecode inspection
 
-EXTCODEHASH-style fingerprinting
+code fingerprinting
 
 selector scanning
 
-supported-pattern matching
-
-recovery-plan validation
+known-pattern matching
 
 target validation
 
-plan hashing
+recovery-plan validation
+
+Exit Proof hashing
 ```
 
-The goal is not to pretend Rust can magically understand arbitrary contracts.
+Conceptually:
 
-The goal is to make the expensive deterministic verification step efficient enough to perform onchain.
+```rust
+pub struct ContractFingerprint {
+    pub target: Address,
+    pub code_hash: B256,
+    pub code_size: u64,
+}
+
+pub struct VerifiedStep {
+    pub target: Address,
+    pub selector: [u8; 4],
+    pub code_hash: B256,
+}
+```
+
+Stylus is used where AFTERLIFE actually benefits from it:
+
+```text
+bytecode processing
+
+larger in-memory analysis
+
+deterministic pattern verification
+
+contract fingerprinting
+```
+
+It is not added merely as a hackathon checkbox.
 
 ---
 
-# 5. Exit Proof
+# 5. Exit Proof Generation
 
-The output of verification is an Exit Proof.
+Once the graph passes verification, AFTERLIFE produces an Exit Proof.
 
 Conceptually:
 
 ```solidity
 struct ExitProof {
     address owner;
-
     uint256 chainId;
 
     bytes32 graphHash;
@@ -433,58 +542,48 @@ struct ExitProof {
     bytes32[] targetCodeHashes;
 
     address finalAsset;
-
     address recipient;
 
     uint256 minimumAmountOut;
-
     uint256 deadline;
 }
 ```
 
-The proof commits to:
+The proof answers:
 
 ```text
-WHO
+WHO owns the position?
 
-owns the position
+WHERE is the recovery happening?
 
-WHERE
+WHAT contracts are allowed?
 
-the recovery is happening
+WHICH versions were analyzed?
 
-WHAT
+HOW is the position unwound?
 
-contracts may be called
+WHERE do recovered funds go?
 
-WHICH VERSION
-
-of those contracts was analyzed
-
-HOW
-
-the position will be unwound
-
-WHERE
-
-the recovered assets will go
-
-HOW MUCH
-
-must be recovered at minimum
+HOW MUCH must be returned?
 ```
-
-Changing any important part produces a different proof.
 
 ---
 
 # 6. Simulation
 
-An Exit Proof is not immediately executed.
+No verified plan is immediately executed.
 
-The entire recovery path is first simulated against current state.
+It must first survive simulation against current state.
 
-AFTERLIFE checks:
+```mermaid
+flowchart LR
+    A[Exit Proof] --> B[Simulate]
+    B --> C{Valid Result?}
+    C -->|Yes| D[Enable Recovery]
+    C -->|No| E[Block Execution]
+```
+
+AFTERLIFE verifies:
 
 ```text
 all calls succeed
@@ -493,11 +592,11 @@ expected assets leave the position
 
 expected underlying assets arrive
 
-recipient is correct
+recipient matches
 
 minimum output is satisfied
 
-the position is actually reduced
+position balance decreases
 
 unexpected assets are not transferred
 ```
@@ -505,289 +604,315 @@ unexpected assets are not transferred
 Example:
 
 ```text
-RECOVERY SIMULATION
-
-Before
-
-gpUSDG       1,024.84
-pUSDG            0.00
-USDG             7.42
-
-After
-
-gpUSDG           0.00
-pUSDG            0.00
-USDG         1,032.26
-
-Recovered
-
-1,024.84 USDG
-
-Result
-
-✓ SAFE TO EXECUTE
+┌─────────────────────────────────────────────┐
+│            RECOVERY SIMULATION              │
+├─────────────────────────────────────────────┤
+│                                             │
+│ BEFORE                                      │
+│                                             │
+│ gpUSDG                         1,024.84      │
+│ pUSDG                              0.00      │
+│ USDG                               7.42      │
+│                                             │
+│ AFTER                                       │
+│                                             │
+│ gpUSDG                             0.00      │
+│ pUSDG                              0.00      │
+│ USDG                           1,032.26      │
+│                                             │
+│ Recovery                     1,024.84 USDG  │
+│                                             │
+│ Result                             PASS      │
+└─────────────────────────────────────────────┘
 ```
 
 ---
 
 # 7. Recovery Executor
 
-Only verified recovery plans reach execution.
+Only verified recovery plans can reach the execution layer.
 
-Depending on the target protocol, AFTERLIFE can use:
+Depending on the target contracts, AFTERLIFE can perform:
 
 ```text
 direct user calls
 
-safe sequential execution
+sequential recovery
 
-compatible batch execution
+compatible batched calls
 
 router-based execution
 ```
 
-Atomic execution is used where the target contracts permit it.
+### Important
 
-AFTERLIFE does not pretend every protocol can be atomically unwound through a generic router.
+AFTERLIFE does not claim every DeFi position can be atomically unwound.
 
-If three user-originated transactions are genuinely required:
+Some protocols rely directly on:
 
-```text
-1. UNSTAKE
-
-2. REDEEM
-
-3. WITHDRAW
+```solidity
+msg.sender
 ```
 
-AFTERLIFE executes and tracks those three steps rather than hiding unsafe assumptions behind a "one click" claim.
+or require separate user-originated operations.
+
+In those cases AFTERLIFE gives the user a controlled sequence.
+
+```text
+┌────────────────────────────────────────┐
+│ STEP 1                                 │
+│                                        │
+│ Unstake gpUSDG                         │
+│                                        │
+│ Status                         COMPLETE│
+├────────────────────────────────────────┤
+│ STEP 2                                 │
+│                                        │
+│ Redeem pUSDG                           │
+│                                        │
+│ Status                    READY TO SIGN│
+├────────────────────────────────────────┤
+│ STEP 3                                 │
+│                                        │
+│ Receive USDG                           │
+│                                        │
+│ Status                          PENDING│
+└────────────────────────────────────────┘
+```
+
+Atomic where possible.
+
+Sequential where required.
 
 ---
 
 # Jev
 
-Jev sits inside discovery, not execution.
+Jev helps AFTERLIFE reason about unfamiliar contracts.
 
-Its job is to help answer questions such as:
+Its job is discovery.
 
-```text
-What might this unknown receipt token represent?
+Not authority.
 
-Which detected methods are likely related?
-
-What contract appears to issue the underlying shares?
-
-Why did a candidate recovery path revert?
-```
-
-Jev can produce:
+### Inputs
 
 ```text
-candidate classifications
+runtime bytecode
 
-candidate dependencies
+known selectors
 
-function interpretations
+available ABI data
 
-human-readable explanations
+event history
+
+historical calls
+
+proxy implementation
+
+view-call results
+
+revert traces
 ```
 
-Jev cannot approve a recovery.
+### Outputs
 
-Jev cannot bypass verification.
+```text
+candidate contract classification
 
-Jev cannot move funds.
+possible function semantics
 
-The model proposes.
+candidate asset relationships
 
-The verifier proves what can actually be checked.
+candidate exit graph
 
-The user signs.
+failure explanations
+```
+
+Example:
+
+```text
+Observed
+
+Wallet owns:
+1,024.84 gpUSDG
+
+gpUSDG contract:
+withdraw(uint256)
+
+withdraw simulation:
+returns pUSDG
+
+pUSDG:
+implements ERC-4626
+
+pUSDG.asset():
+returns USDG
+```
+
+Jev may propose:
+
+```text
+gpUSDG
+  ↓ withdraw
+pUSDG
+  ↓ redeem
+USDG
+```
+
+But Jev cannot authorize that path.
+
+```text
+Jev proposes.
+
+Verifier validates.
+
+Simulation tests.
+
+User signs.
+```
 
 ---
 
-# Confidence Levels
-
-Not every protocol can be safely reconstructed.
+# Recovery Confidence
 
 AFTERLIFE makes uncertainty visible.
 
-### VERIFIED
+## VERIFIED
 
 ```text
-✓ supported structure
+Structure              VERIFIED
 
-✓ contracts fingerprinted
+Contracts              FINGERPRINTED
 
-✓ required calls identified
+Exit calls             VERIFIED
 
-✓ simulation passed
+Simulation             PASSED
 
-✓ output constraints satisfied
-
-EXECUTION ENABLED
+Execution              ENABLED
 ```
-
-### PARTIALLY VERIFIED
-
-```text
-✓ likely exit route
-
-✓ simulation passed
-
-! unsupported structural element
-
-MANUAL CONFIRMATION REQUIRED
-```
-
-### UNKNOWN
-
-```text
-Possible exit discovered.
-
-AFTERLIFE cannot establish
-sufficient confidence for
-automatic execution.
-
-EXECUTION DISABLED
-```
-
-A safe refusal is a valid result.
 
 ---
 
-# What Makes AFTERLIFE Different
-
-## Block explorers
-
-Arbiscan can expose a contract method.
-
-It cannot tell a normal user:
+## PARTIAL
 
 ```text
-what their position represents
+Structure              PARTIAL
 
-what must be withdrawn first
+Exit route             FOUND
 
-how several contracts depend on each other
+Simulation             PASSED
 
-what the final asset should be
+Unknown element        PRESENT
 
-whether an implementation changed
-
-whether the complete exit succeeds
+Execution              RESTRICTED
 ```
 
-AFTERLIFE reconstructs the position.
-
 ---
 
-## Protocol-specific unwind tools
-
-Existing DeFi products can provide sophisticated one-transaction exits for protocols they explicitly support.
-
-AFTERLIFE solves a different problem:
-
-> **What happens when the application you're relying on no longer exists?**
-
-The target protocol does not need to integrate AFTERLIFE.
-
----
-
-## Emergency guardians
-
-AFTERLIFE is not another risk-monitoring or exploit-detection bot.
-
-It does not attempt to predict whether a protocol is dying.
-
-Its job begins with a simpler question:
-
-> **Can this wallet still get out?**
-
----
-
-# USDG Integration
-
-The hackathon build uses Paxos USDG as the underlying asset in the recovery demonstration.
-
-Paxos currently publishes USDG on Arbitrum Sepolia at:
+## UNKNOWN
 
 ```text
-0xFFC95faa3d63Cde504a05B567C600B78C0b41892
+Possible recovery path detected.
+
+AFTERLIFE cannot establish enough
+confidence for automatic execution.
+
+Execution disabled.
 ```
 
-
-USDG is not added as a decorative transfer at the end of the demo.
-
-It is the asset being deposited, wrapped into a DeFi position, stranded after the demo protocol dies, and ultimately recovered by AFTERLIFE.
-
----
-
-# Phantom Protocol
-
-The demo includes a miniature DeFi application called:
-
-# PHANTOM
-
-Its structure is:
-
-```text
-USDG
- │
- │ deposit
- ▼
-PhantomVault
- │
- │ ERC-4626 shares
- ▼
-pUSDG
- │
- │ stake
- ▼
-PhantomGauge
- │
- │ receipt position
- ▼
-gpUSDG
-```
-
-The normal PHANTOM frontend knows this structure.
-
-AFTERLIFE does not receive that information directly.
+A refusal is a valid output.
 
 ---
 
 # The Kill Test
 
-The demo is designed around one visual moment.
+The hackathon demo revolves around one experiment.
 
-### Step 1
+<div align="center">
 
-Deposit:
+## Kill the application.
+
+## Keep the contracts alive.
+
+## Recover the money anyway.
+
+</div>
+
+---
+
+# PHANTOM
+
+PHANTOM is a small DeFi protocol built specifically for the demonstration.
+
+```mermaid
+flowchart TD
+    A[USDG]
+    B[PhantomVault]
+    C[pUSDG]
+    D[PhantomGauge]
+    E[gpUSDG]
+
+    A -->|deposit| B
+    B -->|mint shares| C
+    C -->|stake| D
+    D -->|mint receipt| E
+```
+
+The user deposits:
 
 ```text
 1,000 USDG
 ```
 
-into PHANTOM.
+The final wallet position becomes:
 
-Stake the vault shares.
+```text
+gpUSDG
+```
+
+Then PHANTOM disappears.
 
 ---
 
-### Step 2
+# Live Demo
 
-Kill PHANTOM.
+## 00:00 — Deposit
 
 ```text
-PHANTOM
-
-404
-
-SERVICE UNAVAILABLE
+┌──────────────────────────────────────┐
+│ PHANTOM                              │
+│                                      │
+│ Deposit                              │
+│                                      │
+│ 1,000 USDG                           │
+│                                      │
+│              DEPOSIT                 │
+└──────────────────────────────────────┘
 ```
 
-Stop:
+USDG enters the vault.
+
+Shares are staked.
+
+---
+
+## 00:30 — Kill PHANTOM
+
+The application is shut down.
+
+```text
+┌──────────────────────────────────────┐
+│                                      │
+│             PHANTOM                  │
+│                                      │
+│                 404                  │
+│                                      │
+│         SERVICE UNAVAILABLE          │
+│                                      │
+└──────────────────────────────────────┘
+```
+
+Stopped:
 
 ```text
 frontend
@@ -797,175 +922,217 @@ application API
 indexer
 ```
 
-The smart contracts remain deployed.
+Still running:
+
+```text
+smart contracts
+```
 
 ---
 
-### Step 3
-
-Open AFTERLIFE.
-
-Connect the same wallet.
+## 00:45 — Open AFTERLIFE
 
 ```text
-SCANNING WALLET...
+┌──────────────────────────────────────┐
+│ AFTERLIFE                            │
+│                                      │
+│ Scanning wallet...                   │
+│                                      │
+│ Contracts inspected              12  │
+│ Candidate positions              03  │
+│ Recoverable positions            01  │
+└──────────────────────────────────────┘
+```
 
-POSITION FOUND
+Position found:
 
+```text
 1,0XX gpUSDG
 ```
 
 ---
 
-### Step 4
+## 01:10 — Reconstruction
 
-AFTERLIFE reconstructs:
+AFTERLIFE discovers:
 
-```text
-gpUSDG
-  ↓
+```mermaid
+flowchart TD
+    A[gpUSDG]
+    B[PhantomGauge]
+    C[pUSDG]
+    D[PhantomVault]
+    E[USDG]
 
-PhantomGauge
-  ↓ withdraw
-
-pUSDG
-  ↓
-
-PhantomVault
-  ↓ redeem
-
-USDG
+    A --> B
+    B -->|unstake| C
+    C --> D
+    D -->|redeem| E
 ```
 
-No PHANTOM frontend or API is used.
+No PHANTOM frontend is queried.
+
+No PHANTOM API is queried.
+
+No PHANTOM indexer is queried.
 
 ---
 
-### Step 5
-
-AFTERLIFE generates:
+## 01:40 — Exit Proof
 
 ```text
-EXIT PROOF
-
-Code fingerprints       ✓
-
-Vault structure         ✓
-
-Underlying              USDG
-
-Simulation              ✓
-
-Expected recovery       1,0XX USDG
-
-Minimum recovery        1,0XX USDG
-
-Recipient               0xUSER
-
-READY
+┌────────────────────────────────────────────┐
+│ EXIT PROOF                                 │
+├────────────────────────────────────────────┤
+│                                            │
+│ Vault structure                 VERIFIED   │
+│ Gauge relationship              VERIFIED   │
+│ Underlying asset                    USDG   │
+│                                            │
+│ Contract fingerprints             MATCH   │
+│ Proxy implementations          RESOLVED   │
+│ Simulation                       PASSED   │
+│                                            │
+│ Expected recovery          1,0XX.XX USDG  │
+│ Recipient                       0xUSER...  │
+│                                            │
+│              READY TO RECOVER              │
+└────────────────────────────────────────────┘
 ```
 
 ---
 
-### Step 6
+## 02:10 — Recover
 
-Click:
+```text
+┌──────────────────────────────────────┐
+│                                      │
+│          RECOVER POSITION            │
+│                                      │
+└──────────────────────────────────────┘
+```
 
-# RECOVER
+User signs.
 
-Sign the recovery.
+AFTERLIFE executes the verified exit.
 
 ---
 
-### Step 7
-
-Show the result.
+## 02:30 — Proof
 
 ```text
-RECOVERY COMPLETE
-
-1,0XX USDG
-
-returned to
-
-0xUSER
+┌────────────────────────────────────────────┐
+│ RECOVERY COMPLETE                          │
+├────────────────────────────────────────────┤
+│                                            │
+│ Returned                      1,0XX USDG   │
+│                                            │
+│ Recipient                      0xUSER...   │
+│                                            │
+│ PHANTOM frontend                  OFFLINE  │
+│ PHANTOM API                       OFFLINE  │
+│ PHANTOM indexer                   OFFLINE  │
+│                                            │
+│ Recovery                            DONE   │
+└────────────────────────────────────────────┘
 ```
 
-Then show:
+Then open Arbiscan.
 
-```text
-PHANTOM FRONTEND
+Show the contracts.
 
-OFFLINE
-```
+Show the transaction.
 
-And finally open the chain explorer to prove the recovery occurred completely through the deployed contracts.
+Show the USDG back in the wallet.
 
 ---
 
 # The Demo Line
 
-> **We didn't restore the dead app.**
+> We did not restore the dead application.
 
-> **We reconstructed the exit from the blockchain.**
+> We reconstructed the exit from the blockchain.
 
 ---
 
 # Recovery Readiness
 
-The exact same engine also works before an emergency.
+AFTERLIFE is also useful before anything fails.
 
-A user can scan current positions and ask:
+A user can ask:
 
-# “If this frontend disappeared tonight, could I still get out?”
-
-Example:
+> **If every interface for this protocol disappeared tonight, could I still exit?**
 
 ```text
-RECOVERY READINESS
-
-Aave position
-VERIFIED
-
-USDG Vault
-VERIFIED
-
-Unknown Farm
-PARTIAL
-
-Legacy LP
-UNKNOWN
+┌────────────────────────────────────────────┐
+│ RECOVERY READINESS                         │
+├────────────────────────────────────────────┤
+│                                            │
+│ USDG Vault                       VERIFIED  │
+│                                            │
+│ Lending Position                 VERIFIED  │
+│                                            │
+│ Legacy Farm                       PARTIAL   │
+│                                            │
+│ Unknown LP                        UNKNOWN   │
+│                                            │
+└────────────────────────────────────────────┘
 ```
 
-This gives AFTERLIFE utility before a shutdown happens without requiring a separate monitoring product.
+The same compiler powers both:
 
-It is simply another use of the same Exit Compiler.
+```text
+pre-failure recovery analysis
+
+and
+
+post-failure recovery execution
+```
+
+No separate Guardian product is required.
 
 ---
 
-# Safety Invariants
+# Security Model
 
-Every executable recovery follows strict rules.
+AFTERLIFE is built around explicit execution constraints.
 
-### Owner binding
+```mermaid
+flowchart LR
+    A[Candidate Exit] --> B[Code Hash Check]
+    B --> C[Target Validation]
+    C --> D[Recipient Check]
+    D --> E[Minimum Output]
+    E --> F[Simulation]
+    F --> G[User Signature]
+    G --> H[Execution]
+```
+
+---
+
+## Owner Binding
 
 The position owner is part of the Exit Proof.
 
-### Recipient binding
+---
 
-Recovered assets can only go to the approved recipient.
+## Recipient Binding
 
-### Code fingerprinting
+Recovered assets must go to the approved recipient.
 
-The verifier checks analyzed contract versions.
+---
+
+## Code Fingerprinting
 
 ```text
-expectedCodeHash
-        ==
-currentCodeHash
+expected code hash
+
+        equals
+
+current code hash
 ```
 
-If not:
+Otherwise:
 
 ```text
 CONTRACT CHANGED
@@ -973,72 +1140,144 @@ CONTRACT CHANGED
 EXIT PROOF INVALID
 ```
 
-### Minimum output
+---
 
-The transaction reverts if recovery produces less than the configured floor.
+## Minimum Output
 
-### Expiration
+Every recovery includes:
 
-Old Exit Proofs expire.
+```text
+minimumAmountOut
+```
 
-### Explicit targets
-
-Recovery execution cannot introduce arbitrary unverified contracts.
-
-### No AI execution authority
-
-Model output never overrides deterministic checks.
-
-### Simulation requirement
-
-Executable plans must first simulate successfully.
+The execution fails if the recovery produces less.
 
 ---
 
-# Supported MVP Recovery Classes
+## Explicit Targets
 
-The hackathon build deliberately supports a narrow but real subset.
+The executor cannot introduce arbitrary contracts that were not part of the verified recovery.
+
+---
+
+## Expiration
+
+Exit Proofs contain deadlines.
+
+Old recovery plans cannot remain valid indefinitely.
+
+---
+
+## Simulation Required
+
+No executable recovery reaches the user without a successful simulation.
+
+---
+
+## No AI Authority
+
+Jev cannot:
+
+```text
+sign transactions
+
+override verification
+
+change the recipient
+
+disable minimum-output rules
+
+add arbitrary contracts
+```
+
+---
+
+# USDG
+
+USDG is not a decorative sponsor integration.
+
+It is the actual capital used in the Kill Test.
+
+```mermaid
+flowchart LR
+    A[USDG] -->|deposit| B[PHANTOM]
+    B -->|protocol disappears| C[Stranded Position]
+    C -->|AFTERLIFE| D[Exit Proof]
+    D -->|recover| E[USDG]
+```
+
+Arbitrum Sepolia:
+
+```text
+USDG
+
+0xFFC95faa3d63Cde504a05B567C600B78C0b41892
+```
+
+---
+
+# MVP
+
+The hackathon build deliberately stays narrow.
+
+### Supported
 
 ```text
 ERC-20 assets
 
 ERC-4626 vaults
 
-ERC-1967 proxy detection
+ERC-1967 proxy resolution
 
-common staking wrappers
+staking wrappers
 
-nested:
+nested vault positions
 
-staking receipt
-    ↓
+code fingerprinting
 
-vault share
-    ↓
+Exit Proof generation
 
-underlying token
+simulation
+
+constrained recovery execution
+
+USDG
 ```
 
-That is sufficient to demonstrate the new primitive without pretending to solve every DeFi protocol in existence.
+### Not pretending to solve
+
+```text
+every EVM contract
+
+every lending protocol
+
+every bridge
+
+cross-chain recovery
+
+stolen assets
+
+insolvent protocols
+
+permanently paused contracts
+
+arbitrary malicious bytecode
+```
 
 ---
 
-# Smart Contracts
+# Contracts
 
-```text
-AfterlifeVerifier.rs
-```
+## `AfterlifeVerifier.rs`
 
-Stylus/Rust verification engine.
-
-Responsibilities:
+Stylus verification engine.
 
 ```text
 bytecode inspection
 
-code fingerprinting
+contract fingerprinting
 
-selector matching
+selector analysis
 
 pattern validation
 
@@ -1047,18 +1286,14 @@ Exit Proof verification
 
 ---
 
-```text
-AfterlifeExecutor.sol
-```
+## `AfterlifeExecutor.sol`
 
-Constrained recovery executor.
-
-Responsibilities:
+Constrained execution layer.
 
 ```text
-approved targets
+verified targets
 
-approved operations
+verified operations
 
 recipient enforcement
 
@@ -1071,53 +1306,29 @@ asset accounting
 
 ---
 
-```text
-PhantomVault.sol
-```
+## `PhantomVault.sol`
 
-ERC-4626 USDG vault used for the kill test.
+ERC-4626 USDG vault used for the Kill Test.
 
 ---
 
-```text
-PhantomGauge.sol
-```
+## `PhantomGauge.sol`
 
-Secondary staking layer.
+Secondary staking layer used to create a nested DeFi position.
 
 ---
 
-# Offchain Recovery Compiler
-
-```text
-scanner/
-
-proxyResolver/
-
-interfaceProber/
-
-eventAnalyzer/
-
-graphCompiler/
-
-simulator/
-
-jev/
-```
-
-This portion performs discovery that cannot or should not happen inside the execution contract.
-
-The final execution remains constrained by onchain verification.
-
----
-
-# MVP Repository
+# Repository Structure
 
 ```text
 afterlife/
 │
 ├── apps/
 │   └── web/
+│       ├── scan/
+│       ├── position/
+│       ├── proof/
+│       └── recover/
 │
 ├── compiler/
 │   ├── scanner.ts
@@ -1149,112 +1360,92 @@ afterlife/
 
 ---
 
-# Hackathon Scope
+# The Entire System in One Diagram
 
-## Ship
+```mermaid
+flowchart TD
 
-```text
-✓ wallet scanner
+    A["Wallet holds gpUSDG"]
 
-✓ ERC-4626 discovery
+    A --> B["AFTERLIFE Scanner"]
 
-✓ nested staking discovery
+    B --> C["Detect PhantomGauge"]
+    C --> D["Discover pUSDG dependency"]
 
-✓ ERC-1967 proxy resolution
+    D --> E["Detect ERC-4626"]
+    E --> F["Resolve USDG underlying"]
 
-✓ Exit Dependency Graph
+    F --> G["Compile Exit Graph"]
 
-✓ Stylus verifier
+    G --> H["Stylus Verification"]
 
-✓ Exit Proof
+    H --> I["Generate Exit Proof"]
 
-✓ simulation
+    I --> J["Simulate"]
 
-✓ constrained execution
+    J --> K{"Simulation Passed?"}
 
-✓ USDG integration
+    K -->|No| L["Block Execution"]
 
-✓ PHANTOM kill test
-```
+    K -->|Yes| M["User Signs"]
 
-## Do Not Waste Time On
+    M --> N["Unstake gpUSDG"]
 
-```text
-✗ cross-chain recovery
+    N --> O["Redeem pUSDG"]
 
-✗ universal bytecode decompilation
+    O --> P["Return USDG"]
 
-✗ DAO governance
-
-✗ tokens
-
-✗ protocol scoring
-
-✗ yield discovery
-
-✗ DNS monitoring
-
-✗ autonomous keepers
-
-✗ mobile app
-
-✗ giant adapter library
-
-✗ generic AI chatbot
+    P --> Q["Recovery Complete"]
 ```
 
 ---
 
-# Why Arbitrum
+# Why AFTERLIFE
 
-AFTERLIFE uses Arbitrum for more than cheap transactions.
-
-The Recovery Verifier performs compute- and memory-heavy contract analysis using Stylus.
-
-The execution contracts and USDG test position live on Arbitrum.
-
-The entire demonstration therefore depends on:
+Existing interfaces answer:
 
 ```text
-Arbitrum smart contracts
-
-+
-
-Stylus computation
-
-+
-
-Arbitrum transaction execution
-
-+
-
-USDG on Arbitrum
+What can this contract do?
 ```
 
-The chain is part of the product architecture rather than simply the place where a token was deployed.
+AFTERLIFE answers:
+
+```text
+What does my position actually represent?
+
+How do I unwind it?
+
+Are the contracts still the versions I analyzed?
+
+Will the exit succeed?
+
+What will I receive?
+
+Can I safely execute it right now?
+```
+
+That is a different problem.
 
 ---
 
 # One-Sentence Pitch
 
-> **AFTERLIFE is a permissionless exit compiler that reconstructs a stranded DeFi position from onchain state, generates a verified Exit Proof, and returns the recoverable assets to the owner—even after the original application disappears.**
+> **AFTERLIFE is a permissionless DeFi exit compiler that reconstructs stranded positions from blockchain state, generates a verified Exit Proof, and returns recoverable assets to their owner even after the original application disappears.**
 
 ---
 
-# 10-Second Pitch
+# Ten-Second Pitch
 
-> **Your DeFi protocol disappeared. AFTERLIFE doesn't need its frontend, API, or developers. It reads the contracts, reconstructs your position, proves the exit, and gets your assets back.**
+> **Your DeFi protocol disappeared. AFTERLIFE doesn't need its frontend, API, or developers. It reconstructs your position from the blockchain, proves the exit, and gets your assets back.**
 
 ---
 
-# The Thesis
-
-```text
-If the smart contract survives,
-
-the exit should survive with it.
-```
+<div align="center">
 
 # AFTERLIFE
 
-### **The frontend is dead. Your capital isn't.**
+### If the smart contract survives, the exit should survive with it.
+
+**The frontend is dead. Your capital isn't.**
+
+</div>
